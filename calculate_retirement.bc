@@ -1,0 +1,128 @@
+# to run the script, add your changes and run bc calculate_pension.bc
+# at the top change the values based on your current salary, savings, ...
+# at the bottom change the values based on your AGE
+# This tool is here to show that even the basic calculator, you can still use to do some basic calculation
+
+total_money_for_year = 0             # replace the total money you make for the year
+include_real_estate = 0              # set to 1 if you want to include other estate values, like inheritance        
+pension_3a = 0                       # total amount put in per year for the 3rd pension. 
+pension_received_when_retiring = 0   # total amount per month one will receive when retiring from the government pension
+yearly_money_added_to_pension = 0    # Add here how much you think will be added to your pension for each year
+scale = 3                            # this is used by bc
+
+define savings(a) {
+    rent = 0 * 12                 # replace the 0 with your cost 
+    food = 0 * 12
+    house_insurance = 0
+    health_insurance = 0
+    public_transport = 0
+    clothes = 0 * 12
+    holidays = 0
+    misc = 0 * 12 # (based on previous estimations 800 + credit card)
+    tax = taxes(a)
+    contributions = a * 0.07        # this variable is what percentage of your revenue contributes to your pension usually the 2nd pension
+    ahv = a * 0.06                  # this is the value which repsents the first pension, where in switzerland is called AHV.
+    family = 0 * 12                 # this is the value regarding children's allowance
+    return a + family - rent - food - house_insurance - health_insurance - public_transport - clothes - holidays - misc - tax - contributions - ahv
+}
+
+define taxes(a) {
+    return a * 0.0  # change 0.0  to the percentage of your tax range
+}
+
+define pension_2a() {
+    return  0   # what your current pension is, in switzerland it is pension 2A
+}
+
+define liquid_assets() {
+    # add your assets which you have access to, but they are assets, like pensions which can be taken out, but would receive a penalty
+    return liquid() +  0
+}
+
+define liquid() {
+    /* return the value of total liquid you have access to */
+    return 0
+}
+
+define non_liquid_assets() {
+    /* anything which is non-liquid but you may want to consider for the retirement calculation */
+    house = 0
+    if (include_house) {
+       house =  0  # set the value of the property or properties
+    }
+    return house
+}
+
+define estimator(rate, time) {
+    savings_with_different_rate = 0  # this where you define separating your liquid with savings which have different interest rate
+    res = liquid() - savings_with_different_rate
+    pension_2a = liquid_assets() - liquid()
+    savings = savings(total_money_for_year)
+    cash = compound(res, savings* 0.20, rate, time) + compound(savings_with_different_rate, savings * 0.55, 0, time)
+    return cash
+}
+
+#---END OF MODIFICATIONS---------------------------------------------------------------------------------
+
+define costs(year) {
+    val = food + rent + house_insurance + public_transport + clothes + holidays + misc
+    for (i=1; i<=year; i++) {
+        val = val + (val * 0.01)  # inflation
+    }
+    return val
+}
+
+define compound(principle, deposit, rate, time) {
+    # Calculates compound interest
+    amount = principle
+    for (i=1; i <= time; i++) {
+        val = amount * (1 + rate / 100)
+        amount = val + deposit
+    }
+    return amount
+}
+
+
+define expectations(year) {
+    salary = total_money_for_year + 1
+    liquid = liquid_assets()
+    liquid_without_3a = liquid()
+    pension = pension_2a()
+    non_liquid = non_liquid_assets()
+    for (i=1; i<=year; i++) {
+      salary = salary + (salary * 0.005)
+      liquid = liquid + (liquid * 0.0025) + savings(salary)
+      liquid_without_3a = liquid_without_3a + (liquid_without_3a * 0.0025) + savings(salary) - pension_3a
+      pension = pension + (pension * 0.03) + yearly_money_added_to_pension
+      non_liquid = non_liquid + (non_liquid * 0.01)
+    }
+
+    val = liquid + pension + non_liquid
+    val = val - (val % 1)
+    last_salary = salary
+    return val
+}
+
+scale = 2
+print "Liquid Assets ", liquid(), "\n"
+print "Liquid Assets + Pension 3a ", liquid_assets(), "\n"
+print "Liquid Assets + Pension 2a and 3a ", liquid_assets() + pension_2a(), " CHF\n"
+print "All Assets ", liquid_assets() + pension_2a() +  non_liquid_assets(), " CHF\n"
+
+print "End of Year expectations\n"
+print "---------CHANGE THIS FOR YOUR AGE.  This is setup for someone who is 47 Years old.---------------\n"
+print "Expectations at 47: ", expectations(0), " CHF Liquid+3a: ", liquid, "\n"
+print "                                CHF Liquid: ", liquid_without_3a, "\n"
+print "Expectations at 48: ", expectations(1), " CHF Liquid+3a: ", liquid, "\n"
+print "                                CHF Liquid: ", liquid_without_3a, "\n"
+print "Expectations at 49: ", expectations(2), " CHF Liquid+3a: ", liquid, "\n"
+print "                                CHF Liquid: ", liquid_without_3a, "\n"
+print "Expectations at 50: ", expectations(3), " CHF Liquid+3a: ", liquid, "\n"
+print "                                CHF Liquid: ", liquid_without_3a, "\n"
+print "Expectations at 54: ", expectations(7), " CHF Liquid+3a: ", liquid, "\n"
+print "                                CHF Liquid: ", liquid_without_3a, "\n"
+print "Expectations at 60: ", expectations(13), " CHF Liquid+3a: ", liquid, "\n"
+print "                                CHF Liquid: ", liquid_without_3a, "\n"
+print "Expectations at 65: ", expectations(18), " CHF Liquid+3a: ", liquid, "\n"
+print "                                CHF Liquid: ", liquid_without_3a, "\n"
+print "At 65: ", (expectations(17) + (pension_received_when_retiring * 30 * 12)) / last_salary * 4, "% of salary at 65\n"
